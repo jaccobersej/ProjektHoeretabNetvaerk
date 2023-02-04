@@ -5,10 +5,12 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import pandas as pd
 
+### LOAD DATA FRA CSV FIL###
 dataframe = pd.read_csv('HoereData.csv')
 TrainData = np.array(dataframe)
 TestData = np.array(pd.read_csv('HoereTestData.csv'))
 
+### FORMATER DATA TIL BRUGBAR DATA###
 count = 0
 dataMatrices = []
 tempMatrix = []
@@ -25,6 +27,7 @@ for row in TrainData:
             oneHotTrainingLabels.append([1, row[3]])
         tempMatrix = []
 
+#VI SAMLER HER ALLE DATAMATRICERNE VI SKAL BRUGE TIL AT TRÆNE PÅ I ET BATCH
 TrainDataMatrices = np.array(dataMatrices)
 
 count = 0
@@ -34,7 +37,6 @@ for row in TestData:
     count += 1
     tempRow = [row[1], row[2], row[4], row[6], row[7], row[8], row[9], row[10]]
     tempMatrix.append(tempRow)
-    print(np.array(tempRow, dtype=object))
     if count % 6 == 0:
         dataMatrices.append(tempMatrix)
         if row[3] == 1:
@@ -43,31 +45,31 @@ for row in TestData:
             oneHotTestLabels.append([1, row[3]])
         tempMatrix = []
 
+#VI SAMLER HER ALLE DATAMATRICERNE VI SKAL BRUGE TIL AT VALIDERE VORES TRÆNING PÅ I ET BATCH
 TestDataMatrices = np.array(dataMatrices)
 
-print(TrainDataMatrices.shape, TestDataMatrices.shape)
-
+###DEFINER, HVILKE LAG MODELLEN INDEHOLDER###
 model = tf.keras.models.Sequential([tf.keras.layers.Flatten(),
-                                    #tf.keras.layers.Dense(256, activation = 'relu'),
                                     tf.keras.layers.Dense(64, activation='relu'),
-                                    #tf.keras.layers.Dropout(0.01),
                                     tf.keras.layers.Dense(32, activation='relu'),
-                                    #tf.keras.layers.Dropout(0.01),
                                     tf.keras.layers.Dense(2, activation='softmax')])
 
+###DEFINER HVILKEN OPTIMIZER OG LEARNING RATE DER SKAL BRUGES###
 opt = tf.keras.optimizers.Adam(learning_rate=0.000002)
-#opt = tf.keras.optimizers.SGD(learning_rate=0.00000001)
+
+###KLARGØR MODELLEN FØR BRUG###
 model.build(input_shape=(None, 6, 8))
 
+###PRINT ET RESUME AF MODELLENS LAG###
 model.summary()
 
+#COMPILE MODELLEN SÅ DEN KAN BRUGES###
 model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=[tf.keras.metrics.CategoricalAccuracy(name='cat_acc')])
-print(np.array(TrainDataMatrices).dtype)
-print(oneHotTrainingLabels, "\n")
-print(oneHotTestLabels)
 
+###TRÆN MODELLEN OG RETURNER EN HISTORIK AF DENS EVALUERINGER###
 model_history = model.fit(TrainDataMatrices, np.asarray(oneHotTrainingLabels), epochs=5000, validation_data=(TestDataMatrices, np.asarray(oneHotTestLabels)))
 
+###PLOT HISTORIKKEN AF MODELLENS EVALUERINGER###
 def Train_Val_Plot(acc, val_acc, loss, val_loss):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
     fig.suptitle(" MODEL'S METRICS VISUALIZATION ")
@@ -88,8 +90,12 @@ def Train_Val_Plot(acc, val_acc, loss, val_loss):
 
     plt.show()
 
+###GEM MODELLEN I FOLDEREN MODELS/ (RELATIV PATH)###
 model.save('models/')
 
+###FORUDSIG AL TEST DATAEN SÅ VI KAN SE HVORDAN DEN KLARER SIG###
 test = model.predict(TestDataMatrices)
 print(test)
+
+###PLOT VED HJÆLP AF PLOT FUNKTIONEN FRA FØR###
 Train_Val_Plot(model_history.history['cat_acc'], model_history.history['val_cat_acc'], model_history.history['loss'], model_history.history['val_loss'])

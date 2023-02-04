@@ -37,6 +37,7 @@ for row in TrainData:
             oneHotTrainingLabels.append([1, row[3]])
         tempMatrix = []
 
+#VI SAMLER HER ALLE DATAMATRICERNE VI SKAL BRUGE TIL AT TRÆNE PÅ I ET BATCH
 TrainDataMatrices = np.array(dataMatrices)
 
 count = 0
@@ -54,6 +55,7 @@ for row in TestData:
             oneHotTestLabels.append([1, row[3]])
         tempMatrix = []
 
+#VI SAMLER HER ALLE DATAMATRICERNE VI SKAL BRUGE TIL AT VALIDERE VORES TRÆNING PÅ I ET BATCH
 TestDataMatrices = np.array(dataMatrices)
     
 
@@ -62,13 +64,13 @@ TestDataMatrices = np.array(dataMatrices)
 class layer:
     def __init__(self):
         pass
-    ###INPUT LAYER (FLATTEN)###
+    ###INPUT LAYER (FLATTEN) TAGER DEN MATRIX DEN FÅR SOM INPUT OG OMDANNER DEN TIL EN VEKTOR VED AT LÆGGE RÆKKERNE I FORLÆNGELSE AF HINANDEN###
     def Input_flatten(data, weights=None, bias=None, aktiverings_funktion=None):
         flat = data.flatten()
         flat = np.reshape(flat, (len(flat),1))
         return flat
         
-    ###FULLY CONNECTED LAYER###
+    ###FULLY CONNECTED LAYER. VIRKER VED AT TAGE MATRIXPRODUKTET AF DE TIDLIGERE AKTIVATIONER OG VÆGTENE OG DEREFTER PLUSSE BIAS. LAGET AKTIVERER DEREFTER OGSÅ NEURONERNE VED AT BRUGE SIN AKTIVERINGSFUNKTION###
     def Dense(dataVektor, weights, bias, aktiverings_funktion):
         ikke_aktiveret = np.dot(weights, dataVektor)+bias
         aktiveringer = globals()[aktiverings_funktion](ikke_aktiveret)
@@ -80,29 +82,33 @@ class loss:
     def __init__(self):
         pass
     
+    ###UDREGNER CATEGORICAL CROSS ENTROPY###
     def Categorical_crossentropy(aktiveringer, TruthLabels):
         return -np.sum(TruthLabels * np.log(aktiveringer + 10**-100))
 
 
 """AKTIVERINGS FUNKTIONER"""
+###UDREGNER ReLU(Z), HVOR Z ER EN VEKTOR AF IKKE AKTIVEREDE NEURONER###
 def Relu(z):
     return np.maximum(0, z)
 
+###UDREGNER FØRSTE AFLEDTE AF ReLU(Z), HVOR Z ER EN VEKTOR AF IKKE AKTIVEREDE NEURONER###
 def ReluDerivative(z):
     return np.heaviside(z, 0)
 
+###UDREGNER SOFTMAX###
 def Softmax(z):
     #Shifter z værdier mod 0 for at sikre numerisk stabilitet, sådan at man overflower mindre og derved får færre NaN værdier.
     shiftz = z - np.max(z)
     return (np.exp(shiftz)/np.exp(shiftz).sum())
 
+###UDREGNER FØRSTE AFLEDTE AF LOSS MED RESPEKT TIL Z, HVOR Z ER DE AKTIVEREDE NEURON VÆRDIER FRA LAG FØR LOSS FUNKTIONEN
 def dEntropyLossWRTZ(a, y):
     return np.subtract(Softmax(a), y)
     
 
 
 """MODEL FUNKTIONALITET"""
-
 class Model:
     def __init__(self, layers):
         self.layers = layers
@@ -129,11 +135,12 @@ class Model:
         biases = np.array(biases, dtype=object)
         return weights, biases
     
+    ###GEM VÆGTE OG BIAS###
     def save(self, savepath):
         np.save(savepath + "weights.npy", self.weights)
         np.save(savepath + "bias.npy", self.biases)
     
-    ###LOAD WEIGHTS OG BIAS###
+    ###LOAD TIDLIGERE WEIGHTS OG BIAS, HVIS MULIGT###
     def load(self, input):
         try:
             print("Loaded weights and bias")
@@ -145,6 +152,7 @@ class Model:
             print('Ingen gemte weights og/eller bias. Laver nye weights og bias')
             self.weights, self.biases = self.initWB(input)
         
+    ###LAV EN FORUDSIGELSE MED NUVÆRENDE VÆGTE OG BIAS###
     def predict(self, data):
         if self.layers[0] != layer.Input_flatten:
             tidligereAktiveringer = layer.Input_flatten(data)
@@ -153,6 +161,7 @@ class Model:
         sidsteAktivering = tidligereAktiveringer.flatten()
         return (np.argmax(sidsteAktivering), sidsteAktivering)
     
+    ###EVALUER PERFORMANCE (UDREGN TRÆNINGS ACCURACY, TRÆNINGS LOSS, VALIDATIONS ACCURACY OG VALIDATIONS LOSS)###
     def evaluate(self, trainingset, traininglabels, validationset=None, validationlabels=None):
         rigtigeGætTræning = 0
         rigtigeGætValidation = 0
@@ -219,7 +228,7 @@ class Model:
         
         return træningsAcc, træningsLoss, validationAcc, validationLoss
                 
-                
+    ###ANVEND ADAM OG BACKPROPAGATION TIL AT OPDATERE VÆGTE OG BIAS###
     def train(self, trainingSet, trainingLabels, epochs, validationset=None, validationLabels=None, learning_rate=0.1):
         
         nabla_b = [np.zeros(b.shape) for b in self.biases]
@@ -270,6 +279,7 @@ class Model:
         
         return history
         
+    ###BEREGN LOSS GRADIENTERNE MED RESPEKT TIL VÆGTE OG BIAS###
     def backpropagation(self, data, label):
         bias_gradient = [np.zeros(b.shape) for b in self.biases]
         weight_gradient = [np.zeros(w.shape) for w in self.weights]
@@ -307,6 +317,7 @@ beta1 = 0.4
 beta2 = 0.499
 epsilon = 10**-7
 
+###DEFINER MODEL INDHOLD###
 test = Model([[layer.Dense, 'Relu'], 
               [layer.Dense, 'Relu'], 
               [layer.Dense, 'Softmax']])
@@ -314,14 +325,13 @@ test = Model([[layer.Dense, 'Relu'],
 
 test.neurons = neuroner
 test.compile() #kør, hvis netværket ikke har været kørt før og der ikke er nogle vægte eller bias
-#test.load("test/")
-history = test.train(TrainDataMatrices, oneHotTrainingLabels, 15000, learning_rate=0.01, validationset=TestDataMatrices, validationLabels=oneHotTestLabels)
-test.save("test/")
-gæt, gæt2 = test.predict(TrainDataMatrices[0])
-print(TrainDataMatrices[0][3], gæt, gæt2)
-gæt, gæt2 = test.predict(TrainDataMatrices[1])
-print(TrainDataMatrices[1][3], gæt, gæt2)
 
+#test.load("test/") ###KAN LOADE GAMLE VÆGTE VED AT KALDE DENNE, HVIS GAMLE VÆGTE LIGGER I FOLDEREN "test/". MULIGHED FOR OGSÅ AT INPUTTE EN LISTE MED TAL FOR AT LAVE NYE VÆGTE TIL EN PASSENDE STRUKTUR FX. [inputshape, 64, 32, 2]
+history = test.train(TrainDataMatrices, oneHotTrainingLabels, 15000, learning_rate=0.01, validationset=TestDataMatrices, validationLabels=oneHotTestLabels) ###TRÆN NETVÆRKET OG RETURNER EN HISTORIK OVER EVALUERINGER SOM KAN BRUGES TIL AT PLOTTE EN GRAF###
+test.save("test/") ###GEM MODELLEN#
+
+
+###PLOT EVALUERINGSHISTORIKKEN###
 def Train_Val_Plot(acc, val_acc, loss, val_loss):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
     fig.suptitle(" MODEL'S METRICS VISUALIZATION ")
@@ -344,8 +354,3 @@ def Train_Val_Plot(acc, val_acc, loss, val_loss):
     
 history = np.array(history, dtype=object).T
 Train_Val_Plot(history[0], history[2], history[1], history[3])
-
-""""NOTER OG TING SOM SKAL HUSKES"""
-
-#loadWB([8, 512,256,128,2]) #input neuroner (inklusiv input og output)
-#test.load("test/")
